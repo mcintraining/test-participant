@@ -62,18 +62,32 @@
             padding: 14px 16px; border-radius: 12px;
             margin-bottom: 8px; animation: slideIn 0.3s ease;
         }
-        .result-item.found {
+
+        /* ✅ ผ่าน - สีเขียว */
+        .result-item.passed {
             background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
             border-left: 5px solid #4caf50;
         }
-        .result-item.not-found {
+
+        /* ❌ ไม่ผ่าน - สีแดง */
+        .result-item.failed {
             background: linear-gradient(135deg, #fce4ec, #f8bbd0);
             border-left: 5px solid #e91e63;
         }
 
+        /* ⚠️ ไม่มีชื่อ - สีเหลือง */
+        .result-item.no-data {
+            background: linear-gradient(135deg, #fff8e1, #ffecb3);
+            border-left: 5px solid #ffc107;
+        }
+
         .result-item .status-icon { font-size: 28px; margin-right: 14px; }
         .result-item .name { font-size: 16px; font-weight: 700; color: #333; }
-        .result-item .status-text { font-size: 13px; color: #555; margin-top: 2px; }
+        .result-item .status-text { font-size: 13px; margin-top: 2px; }
+
+        .status-text.pass-text  { color: #2e7d32; }
+        .status-text.fail-text  { color: #c62828; }
+        .status-text.nodata-text { color: #f57f17; }
 
         .highlight {
             background: #fff176; padding: 1px 4px;
@@ -88,6 +102,21 @@
         .no-result { text-align: center; padding: 35px; color: #aaa; }
         .no-result .big-icon { font-size: 40px; margin-bottom: 10px; }
 
+        /* Legend */
+        .legend {
+            display: flex; justify-content: center; gap: 15px;
+            margin-bottom: 20px; font-size: 12px; color: #888;
+        }
+        .legend span {
+            display: flex; align-items: center; gap: 4px;
+        }
+        .dot {
+            width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+        }
+        .dot.green  { background: #4caf50; }
+        .dot.red    { background: #e91e63; }
+        .dot.yellow { background: #ffc107; }
+
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(-15px); }
             to   { opacity: 1; transform: translateX(0); }
@@ -101,6 +130,13 @@
         <div class="emoji">📋</div>
         <h1>ตรวจสอบรายชื่อผู้เข้าร่วม</h1>
         <p>พิมพ์ชื่อเพื่อค้นหาว่าได้เข้าร่วมกิจกรรมหรือไม่</p>
+    </div>
+
+    <!-- สัญลักษณ์อธิบาย -->
+    <div class="legend">
+        <span><span class="dot green"></span> ผ่าน</span>
+        <span><span class="dot red"></span> ไม่ผ่าน</span>
+        <span><span class="dot yellow"></span> ไม่มีข้อมูล</span>
     </div>
 
     <div class="data-status loading" id="dataStatus">
@@ -127,7 +163,7 @@
 // ============================================================
 // 📌 ใส่ลิงก์ Apps Script ตรงนี้!
 // ============================================================
-var API_URL = 'https://script.google.com/macros/s/AKfycbyE6UwEJNuQCvcaR1s_A6UgDveqUYKTSA35y9_vytC3G_k0KHgAXdYv6cFI3rMuyROr/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbyiZISUlR28jMKSVEIqFpaZRs0U0ZurI19XY4G_cetCKl5H1hqi4vb51oOvZHVPDgy8Mg/exec';
 // ============================================================
 
 var participants = [];
@@ -136,7 +172,7 @@ var resultsDiv  = document.getElementById('results');
 var countInfo   = document.getElementById('countInfo');
 var dataStatus  = document.getElementById('dataStatus');
 
-// --- โหลดข้อมูลจาก Apps Script ---
+// --- โหลดข้อมูล ---
 fetch(API_URL)
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -164,30 +200,58 @@ searchInput.addEventListener('input', function() {
     var query = this.value.trim();
 
     if (!query) {
-        resultsDiv.innerHTML = '<div class="no-result"><div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา<br><small style="color:#bbb">รายชื่อทั้งหมด ' + participants.length + ' คน</small></div>';
+        resultsDiv.innerHTML =
+            '<div class="no-result">' +
+            '<div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา<br>' +
+            '<small style="color:#bbb">รายชื่อทั้งหมด ' + participants.length + ' คน</small></div>';
         countInfo.textContent = '';
         return;
     }
 
+    // กรองชื่อที่ตรง
     var matched = participants.filter(function(p) {
         return p.name.indexOf(query) !== -1;
     });
 
     if (matched.length > 0) {
+        // ✅ เจอชื่อ → เช็คว่าผ่านหรือไม่ผ่าน
         resultsDiv.innerHTML = matched.map(function(p) {
-            var hl = p.name.replace(query, '<span class="highlight">' + query + '</span>');
-            return '<div class="result-item found">' +
-                '<span class="status-icon">✅</span>' +
-                '<div><div class="name">' + hl + '</div>' +
-                '<div class="status-text">✔ ' + p.status + '</div></div></div>';
+            var hl = p.name.replace(
+                query, '<span class="highlight">' + query + '</span>'
+            );
+
+            if (p.passed) {
+                // ✅ ผ่าน - สีเขียว
+                return '<div class="result-item passed">' +
+                    '<span class="status-icon">✅</span>' +
+                    '<div>' +
+                    '<div class="name">' + hl + '</div>' +
+                    '<div class="status-text pass-text">ผ่านการอบรม</div>' +
+                    '</div></div>';
+            } else {
+                // ❌ ไม่ผ่าน - สีแดง
+                return '<div class="result-item failed">' +
+                    '<span class="status-icon">❌</span>' +
+                    '<div>' +
+                    '<div class="name">' + hl + '</div>' +
+                    '<div class="status-text fail-text">ไม่ผ่านการอบรม</div>' +
+                    '</div></div>';
+            }
         }).join('');
-        countInfo.textContent = 'พบ ' + matched.length + ' คน จากทั้งหมด ' + participants.length + ' คน';
+
+        var passCount = matched.filter(function(p){ return p.passed; }).length;
+        var failCount = matched.length - passCount;
+        countInfo.textContent = 'พบ ' + matched.length + ' คน (ผ่าน ' + passCount + ' / ไม่ผ่าน ' + failCount + ')';
+
     } else {
+        // ⚠️ ไม่มีชื่อเลย - สีเหลือง
         resultsDiv.innerHTML =
-            '<div class="result-item not-found">' +
-            '<span class="status-icon">❌</span>' +
-            '<div><div class="name">"' + query + '"</div>' +
-            '<div class="status-text">ไม่พบในรายชื่อผู้เข้าร่วม</div></div></div>';
+            '<div class="result-item no-data">' +
+            '<span class="status-icon">⚠️</span>' +
+            '<div>' +
+            '<div class="name">"' + query + '"</div>' +
+            '<div class="status-text nodata-text">ไม่มีข้อมูลในระบบ</div>' +
+            '</div></div>';
         countInfo.textContent = '';
     }
 });
