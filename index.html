@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ตรวจสอบรายชื่อผู้เข้าร่วม</title>
+    <link rel="icon" href="data:,">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -124,66 +125,46 @@
 
 <script>
 // ============================================================
-// 📌📌📌 ใส่ลิงก์ Google Sheets CSV ตรงนี้! 📌📌📌
+// 📌 ใส่ลิงก์ Apps Script ตรงนี้!
 // ============================================================
-//1st const SHEET_CSV_URL = 'https://corsproxy.io/?' + encodeURIComponent('https://docs.google.com/spreadsheets/d/e/2PACX-1vTt_zzCB_LJuySoWgJ-0z8vc28N_QZ8rt8_WsJs9-C_eghJWma3fEE214ZkAKKQuORysjk-p7LcSjXJ/pub?output=csv');
- //2nd const SHEET_CSV_URL = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://docs.google.com/spreadsheets/d/e/2PACX-1vTt_zzCB_LJuySoWgJ-0z8vc28N_QZ8rt8_WsJs9-C_eghJWma3fEE214ZkAKKQuORysjk-p7LcSjXJ/pub?output=csv');
- const SHEET_CSV_URL = 'https://cors-anywhere.herokuapp.com/' + 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTt_zzCB_LJuySoWgJ-0z8vc28N_QZ8rt8_WsJs9-C_eghJWma3fEE214ZkAKKQuORysjk-p7LcSjXJ/pub?output=csv';  
-  
-// const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTt_zzCB_LJuySoWgJ-0z8vc28N_QZ8rt8_WsJs9-C_eghJWma3fEE214ZkAKKQuORysjk-p7LcSjXJ/pub?output=csv');
-// link csv จาก google sheets
-  
+var API_URL = 'https://script.google.com/macros/s/AKfycbyE6UwEJNuQCvcaR1s_A6UgDveqUYKTSA35y9_vytC3G_k0KHgAXdYv6cFI3rMuyROr/exec';
 // ============================================================
 
-let participants = [];
-const searchInput = document.getElementById('searchInput');
-const resultsDiv  = document.getElementById('results');
-const countInfo   = document.getElementById('countInfo');
-const dataStatus  = document.getElementById('dataStatus');
+var participants = [];
+var searchInput = document.getElementById('searchInput');
+var resultsDiv  = document.getElementById('results');
+var countInfo   = document.getElementById('countInfo');
+var dataStatus  = document.getElementById('dataStatus');
 
-// --- โหลดข้อมูล ---
-async function loadData() {
-    try {
-        const res  = await fetch(SHEET_CSV_URL);
-        const text = await res.text();
-        participants = parseCSV(text);
+// --- โหลดข้อมูลจาก Apps Script ---
+fetch(API_URL)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        participants = data;
+        console.log('โหลดได้', participants.length, 'รายชื่อ');
+        console.log('ตัวอย่าง:', participants.slice(0, 3));
 
         dataStatus.className = 'data-status success';
         dataStatus.textContent = '✅ โหลดสำเร็จ (' + participants.length + ' รายชื่อ)';
         searchInput.disabled = false;
         searchInput.focus();
 
-        resultsDiv.innerHTML =
-            '<div class="no-result"><div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา</div>';
+        resultsDiv.innerHTML = '<div class="no-result"><div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา</div>';
 
-        setTimeout(function(){ dataStatus.style.display = 'none'; }, 2000);
-
-    } catch (e) {
+        setTimeout(function() { dataStatus.style.display = 'none'; }, 2000);
+    })
+    .catch(function(err) {
+        console.error('Error:', err);
         dataStatus.className = 'data-status error';
-        dataStatus.textContent = '❌ โหลดไม่สำเร็จ - ตรวจสอบลิงก์ CSV';
-    }
-}
-
-// --- แปลง CSV ---
-function parseCSV(csv) {
-    var lines = csv.trim().split('\n');
-    var result = [];
-    for (var i = 1; i < lines.length; i++) {
-        var cols = lines[i].split(',');
-        var name = (cols || '').trim().replace(/"/g, '');
-        var status = (cols || 'เข้าร่วม').trim().replace(/"/g, '');
-        if (name) result.push({ name: name, status: status });
-    }
-    return result;
-}
+        dataStatus.textContent = '❌ โหลดไม่สำเร็จ - ตรวจสอบลิงก์ API';
+    });
 
 // --- ค้นหา ---
 searchInput.addEventListener('input', function() {
     var query = this.value.trim();
 
     if (!query) {
-        resultsDiv.innerHTML =
-            '<div class="no-result"><div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา<br><small style="color:#bbb">รายชื่อทั้งหมด ' + participants.length + ' คน</small></div>';
+        resultsDiv.innerHTML = '<div class="no-result"><div class="big-icon">⌨️</div>พิมพ์ชื่อเพื่อเริ่มค้นหา<br><small style="color:#bbb">รายชื่อทั้งหมด ' + participants.length + ' คน</small></div>';
         countInfo.textContent = '';
         return;
     }
@@ -198,7 +179,7 @@ searchInput.addEventListener('input', function() {
             return '<div class="result-item found">' +
                 '<span class="status-icon">✅</span>' +
                 '<div><div class="name">' + hl + '</div>' +
-                '<div class="status-text">✔ ได้' + p.status + 'กิจกรรมแล้ว</div></div></div>';
+                '<div class="status-text">✔ ' + p.status + '</div></div></div>';
         }).join('');
         countInfo.textContent = 'พบ ' + matched.length + ' คน จากทั้งหมด ' + participants.length + ' คน';
     } else {
@@ -210,8 +191,7 @@ searchInput.addEventListener('input', function() {
         countInfo.textContent = '';
     }
 });
-
-loadData();
 </script>
+
 </body>
 </html>
